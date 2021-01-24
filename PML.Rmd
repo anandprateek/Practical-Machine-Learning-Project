@@ -1,0 +1,80 @@
+# Practical Machine Learning Project
+
+## Introduction
+
+### Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+### Data 
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+## Importing Libraries
+```{r}
+library(caret)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+```
+
+## Reading the data
+```{r}
+training <- read.csv("pml-training.csv")
+testing<- read.csv("pml-testing.csv")
+```
+
+```{r}
+countna<-sapply(training,function(x) sum(is.na(x)))
+training<-training[,ifelse(countna==0,TRUE,FALSE)]
+#As the first seven columns has data that is of no use, we remove them
+training<-training[,-c(1:7)]
+```
+
+## Dividing data into training and test datasets
+```{r}
+divdata<-createDataPartition(training$classe,p=0.6,list=FALSE)
+train_data<-training[divdata,]
+test_data<-training[-divdata,]
+head(test_data)
+```
+
+## Model Training and predicting
+```{r,cache=TRUE}
+model<-train(data=train_data,classe~yaw_belt+accel_belt_z+gyros_arm_x+accel_arm_x+roll_dumbbell+gyros_dumbbell_x)
+predictTrain<-predict(model,train_data)
+print(paste("Ratio correct on train_data=",sum(predictTrain==train_data$classe)/length(predictTrain)))
+predictTest<-predict(model,test_data)
+print(paste("Ratio correct on test_data=",sum(predictTest==train_data$classe)/length(predictTest)))
+```
+
+## Plots
+```{r}
+featurePlot(x = training[,c(8:10)], y = training$classe, plot = "box")
+ggplot(data = training, aes(x = accel_belt_z, fill = classe)) + geom_histogram()
+ggplot(data = training, aes(x = gyros_arm_x, fill = classe)) + geom_histogram()
+ggplot(data = training, aes(x = accel_arm_x, fill = classe)) + geom_histogram()
+plot(model)
+```
+
+## Analysis
+```{r}
+dim(train_data)
+dim(test_data)
+reqdata<-as.factor(test_data$classe)
+AccuracyTest<-confusionMatrix(predictTest,reqdata)
+AccuracyTest
+FinalPrediction<- predict(model, testing, type = "prob")
+FinalPrediction
+```
+Hence the accuracy of the model on test_data dataset is 93.7% which estimates the out-of-sample error to be 100-93.7=6.3%.
